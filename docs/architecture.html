@@ -145,13 +145,26 @@ mindmap
 </footer>
 
 <script>
-  mermaid.initialize({startOnLoad:true,theme:"default",securityLevel:"loose"});
+  // startOnLoad=false：隱藏分頁裡的圖會以 0 尺寸算出 → 顯示空白。
+  // 改成「分頁顯示時才渲染」，確保有正確尺寸。
+  mermaid.initialize({startOnLoad:false,theme:"default",securityLevel:"loose"});
+  const done=new Set();
+  async function render(id){
+    if(done.has(id))return;
+    const el=document.querySelector("#"+id+" .mermaid");
+    if(!el)return;
+    done.add(id);
+    try{ await mermaid.run({nodes:[el]}); }
+    catch(e){ el.innerHTML="<pre style='color:#c00;white-space:pre-wrap'>"+e+"</pre>"; }
+  }
+  window.addEventListener("load",()=>render("overview"));
   document.querySelectorAll(".tabs button").forEach(b=>{
-    b.onclick=()=>{
+    b.onclick=async()=>{
       document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
       document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
       b.classList.add("active");
       document.getElementById(b.dataset.t).classList.add("active");
+      await render(b.dataset.t);
     };
   });
 </script>

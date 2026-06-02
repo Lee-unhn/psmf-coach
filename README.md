@@ -33,12 +33,53 @@ PSMF 是**極低熱量飲食（VLCD）**，屬醫學界最激進的減脂協議�
 
 ## 🏗️ 架構
 
-詳見 [`docs/architecture.html`](docs/architecture.html)（用瀏覽器開的互動架構圖）。
+互動版（5 分頁）：[`docs/architecture.html`](docs/architecture.html)。以下為靜態圖（GitHub 直接渲染）。
 
+### 系統總覽
+
+```mermaid
+flowchart TD
+  subgraph IN[回填（三選一）]
+    F1[Google 表單<br>隨地]; F2[本機表單 form.py<br>即時]; F3[Google Sheet<br>手動]
+  end
+  DB[(SQLite<br>psmf.db)]
+  subgraph DAILY[每日 21:05]
+    R[規則引擎<br>決定隔日日型]; M[菜單生成<br>Gemini/template]
+  end
+  subgraph WEEK[每週日 09:00]
+    P[抓論文<br>PubMed/EuropePMC]; A[趨勢分析<br>重算 TDEE]
+  end
+  MAIL[📧 Email<br>菜單卡 / 週報]
+  F1 & F2 & F3 --> DB --> R --> M --> MAIL
+  DB --> A; P --> DB; A --> MAIL
 ```
-回填(表單/網頁/Sheet) ─► SQLite(psmf.db) ─► 規則引擎 ─► 菜單生成(Gemini/template) ─► Email
-                                  ▲                                              
-        每週日: 抓論文(PubMed/EuropePMC) + 趨勢分析 + 重算TDEE ─► HTML 週報 Email
+
+### 每日動態菜單規則引擎
+
+```mermaid
+flowchart TD
+  S[讀今日回填 + 近 7 日趨勢] --> R1{排定 回補/飲食假期?}
+  R1 -- 是 --> RF[隔日 = 回補/假期<br>升碳水至近維持]
+  R1 -- 否 --> R2{近 3 日 能量低/飢餓高?}
+  R2 -- 是 --> B[B 固體日 + 熱量上緣]
+  R2 -- 否 --> R3{體重停滯且依從佳?}
+  R3 -- 是 --> H[維持缺口<br>標記給週日深析]
+  R3 -- 否 --> RT[A/B 輪替]
+  RF & B & H & RT --> G[食材庫組菜單 + 算 macros/價格<br>+ Gemini 教練提示]
+  G --> E[寄菜單卡 + 寫 menu_plan/cost_log]
+```
+
+### 每週研究 + 趨勢分析
+
+```mermaid
+flowchart TD
+  T[週日 09:00] --> P[抓最新論文<br>PubMed / Europe PMC / Semantic Scholar]
+  P --> DBP[(research_papers)]
+  T --> TR[讀近 N 週 body_metrics]
+  DBP & TR --> AN[分析: 減速率 / ETA / 停滯 / 減速過快]
+  AN --> TDEE[依現體重重算 BMR/TDEE]
+  AN --> REP[HTML 週報: 進度 + 調整 + 最新論文 + 累計花費]
+  REP --> MAIL[📧 寄出]
 ```
 
 技術棧：Python 3.12 / SQLite / urllib（抓論文，零依賴）/ gspread(可選) / google-genai(可選) / smtplib。
@@ -124,6 +165,10 @@ Register-ScheduledTask -TaskName "PSMF-Weekly" -Action (New-ScheduledTaskAction 
 
 `.env`、`credentials/`、`data/`（含 DB 與健康資料）全在 `.gitignore`，不會進 git。本 repo 不含任何個資或金鑰。
 
+## 作者 / Author
+
+李昀翰 (Lee Yun-han) · <a2264563@gmail.com> · GitHub [@Lee-unhn](https://github.com/Lee-unhn)
+
 ## 授權
 
-MIT（含醫療免責聲明）。見 [LICENSE](LICENSE)。
+MIT（含醫療免責聲明）。見 [LICENSE](LICENSE)。Copyright © 2026 李昀翰 (Lee Yun-han)。

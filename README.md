@@ -1,3 +1,14 @@
+<p align="center"><img src="docs/banner.svg" alt="PSMF-Coach" width="760"></p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
+  <a href="https://github.com/Lee-unhn/psmf-coach/releases"><img src="https://img.shields.io/github/v/release/Lee-unhn/psmf-coach" alt="Release"></a>
+  <img src="https://img.shields.io/badge/python-3.12-blue.svg" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/cost-free%20APIs-brightgreen.svg" alt="Free APIs">
+</p>
+
+<p align="center"><a href="README.en.md">English</a> | <b>中文</b></p>
+
 # PSMF-Coach 🥗
 
 > 自動化的 PSMF（蛋白質節約型減脂）個人教練系統範本。

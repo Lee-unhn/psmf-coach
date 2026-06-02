@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PSMF-Coach 架構圖</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{--bg:#0f1226;--card:#1a1f3a;--ink:#e8eaf6;--muted:#9aa3c7;--accent:#7e8bff}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Helvetica Neue",Arial,"Microsoft JhengHei",sans-serif;
+       background:var(--bg);color:var(--ink)}
+  header{padding:24px 20px 8px;text-align:center}
+  header h1{margin:0;font-size:24px}
+  header p{margin:6px 0 0;color:var(--muted);font-size:14px;max-width:760px;margin-inline:auto}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:16px}
+  .tabs button{background:var(--card);color:var(--ink);border:1px solid #2b3160;border-radius:20px;
+       padding:8px 16px;font-size:14px;cursor:pointer}
+  .tabs button.active{background:var(--accent);border-color:var(--accent);color:#0f1226;font-weight:bold}
+  .panel{display:none;max-width:1000px;margin:0 auto 40px;background:var(--card);border:1px solid #2b3160;
+       border-radius:12px;padding:20px}
+  .panel.active{display:block}
+  .panel h2{margin:0 0 12px;font-size:18px;color:var(--accent)}
+  .mermaid{background:#fff;border-radius:8px;padding:12px;overflow:auto}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:0 20px 30px;max-width:760px;margin:0 auto}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🥗 PSMF-Coach 架構圖</h1>
+  <p>自動化 PSMF 減脂教練：每日回填 → 動態菜單 email；每週日抓研究 + 趨勢分析 + 週報。純 Python / SQLite / 免費 API。</p>
+</header>
+
+<div class="tabs">
+  <button data-t="overview" class="active">總覽</button>
+  <button data-t="daily">每日流程</button>
+  <button data-t="weekly">每週流程</button>
+  <button data-t="db">資料庫</button>
+  <button data-t="mind">心智圖</button>
+</div>
+
+<div class="panel active" id="overview">
+  <h2>系統總覽</h2>
+  <pre class="mermaid">
+flowchart TD
+  subgraph IN[回填（三選一）]
+    F1[Google 表單\n隨地]; F2[本機表單 form.py\n即時]; F3[Google Sheet\n手動]
+  end
+  DB[(SQLite\npsmf.db)]
+  subgraph DAILY[每日 21:05]
+    R[規則引擎\n決定隔日日型]; M[菜單生成\nGemini/template]
+  end
+  subgraph WEEK[每週日 09:00]
+    P[抓論文\nPubMed/EuropePMC]; A[趨勢分析\n重算 TDEE]
+  end
+  MAIL[📧 Email\n菜單卡 / 週報]
+  F1 & F2 & F3 --> DB --> R --> M --> MAIL
+  DB --> A; P --> DB; A --> MAIL
+  M -. 記帳/menu .-> DB; A -. 調整 .-> DB
+  </pre>
+</div>
+
+<div class="panel" id="daily">
+  <h2>每日動態菜單規則引擎</h2>
+  <pre class="mermaid">
+flowchart TD
+  S[讀今日回填 + 近 7 日趨勢] --> R1{排定 回補/飲食假期?}
+  R1 -- 是 --> RF[隔日 = 回補/假期\n升碳水至近維持]
+  R1 -- 否 --> R2{近 3 日 能量低/飢餓高?}
+  R2 -- 是 --> B[B 固體日 + 熱量上緣]
+  R2 -- 否 --> R3{體重停滯且依從佳?}
+  R3 -- 是 --> H[維持缺口\n標記給週日深析]
+  R3 -- 否 --> RT[A/B 輪替]
+  RF & B & H & RT --> G[食材庫組菜單 + 算 macros/價格\n+ Gemini 教練提示]
+  G --> E[寄菜單卡 + 寫 menu_plan/cost_log]
+  </pre>
+</div>
+
+<div class="panel" id="weekly">
+  <h2>每週研究 + 趨勢分析</h2>
+  <pre class="mermaid">
+flowchart TD
+  T[週日 09:00 觸發] --> P[抓最新論文\nPubMed / Europe PMC / Semantic Scholar]
+  P --> DBP[(research_papers)]
+  T --> TR[讀近 N 週 body_metrics]
+  DBP & TR --> AN[分析: 減速率 / ETA / 停滯 / 減速過快]
+  AN --> TDEE[依現體重重算 BMR/TDEE]
+  TDEE --> ADJ[(plan_adjustments)]
+  AN --> REP[產 HTML 週報\n進度 + 調整 + 最新論文 + 累計花費]
+  REP --> MAIL[📧 寄出]
+  </pre>
+</div>
+
+<div class="panel" id="db">
+  <h2>資料庫 Schema（v1）</h2>
+  <pre class="mermaid">
+erDiagram
+  body_metrics { text date PK }
+  daily_log { text date PK }
+  supplement_log { text date PK }
+  menu_plan { text date PK }
+  cost_log { text date PK }
+  research_papers { int id PK }
+  weekly_report { int week_no PK }
+  plan_adjustments { int id PK }
+  body_metrics ||--o| daily_log : "同日"
+  daily_log ||--o| menu_plan : "驅動隔日"
+  menu_plan ||--|| cost_log : "記帳"
+  research_papers ||--o{ plan_adjustments : "證據"
+  </pre>
+</div>
+
+<div class="panel" id="mind">
+  <h2>心智圖</h2>
+  <pre class="mermaid">
+mindmap
+  root((PSMF-Coach))
+    回填
+      Google 表單
+      本機表單
+      Sheet 手動
+    每日
+      規則引擎
+      食材庫菜單
+      記帳
+      菜單卡 email
+    每週
+      抓論文
+      趨勢/TDEE
+      週報 email
+    安全
+      電解質必需
+      紅燈自檢
+      飲食假期
+    技術
+      Python/SQLite
+      免費 API
+      Windows 排程
+  </pre>
+</div>
+
+<footer>
+  本圖為 PSMF-Coach 開源範本的架構說明。⚠️ PSMF 為極低熱量飲食，使用前請諮詢醫師；本工具為衛教資訊非醫療建議。
+</footer>
+
+<script>
+  mermaid.initialize({startOnLoad:true,theme:"default",securityLevel:"loose"});
+  document.querySelectorAll(".tabs button").forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      document.getElementById(b.dataset.t).classList.add("active");
+    };
+  });
+</script>
+</body>
+</html>

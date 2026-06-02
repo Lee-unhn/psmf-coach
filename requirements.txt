@@ -1,0 +1,5 @@
+# P0 + P1 template/mock 模式: 純標準庫即可跑，以下為「上線/真實串接」才需要。
+gspread>=6.0          # Google Sheet 讀寫
+google-auth>=2.0      # service account 認證
+google-genai>=1.0    # Gemini LLM（新版 SDK；舊 google-generativeai 已停止支援）
+requests>=2.31        # P2 論文抓取 (PubMed/EuropePMC/SemanticScholar)

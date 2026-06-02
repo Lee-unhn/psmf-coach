@@ -1,0 +1,9 @@
+# 秘密與本機資料 — 絕不進 git
+.env
+credentials/
+data/
+__pycache__/
+*.pyc
+.venv/
+venv/
+start_form.vbs        # 本機自動啟動器（含本機絕對路徑），由 install_autostart.py 產生

@@ -12,21 +12,20 @@ from rule_engine import Decision
 
 # 各日型的餐點組合（time, meal_name, [(food_key, qty)]）。B 兩變體輪替增加變化。
 _COMPOSITIONS: dict[str, list] = {
-    "A": [
+    "A": [  # 全乳清 + 精瘦蛋白：高蛋白、低脂、低碳
         ("07:00", "🌅 早餐", [("whey_2", 1)]),
         ("12:30", "🌞 午餐", [("whey_2", 1), ("broccoli", 1)]),
-        ("19:00", "🌙 晚餐", [("whey_2", 1), ("veg_boiled", 1), ("almonds_10", 1), ("olive_oil_5", 1)]),
+        ("19:00", "🌙 晚餐", [("whey_2", 1), ("tuna_can", 1), ("sousvide_chicken", 1), ("veg_boiled", 1)]),
     ],
-    "B0": [
+    "B0": [  # Costco 雞胸 + 鮭魚：精瘦，僅留必需脂肪
         ("07:00", "🌅 早餐", [("whey_2", 1)]),
-        ("12:30", "🌞 午餐", [("whey_2", 1), ("broccoli", 1)]),
-        ("19:00", "🌙 晚餐", [("salmon_ready", 1), ("sousvide_chicken", 1),
-                              ("veg_boiled", 2), ("avocado_half", 1), ("olive_oil_5", 1), ("almonds_10", 1)]),
+        ("12:30", "🌞 午餐", [("costco_chicken_250", 1), ("broccoli", 1)]),
+        ("19:00", "🌙 晚餐", [("salmon_ready", 1), ("sousvide_chicken", 1), ("veg_boiled", 1), ("whey_2", 1)]),
     ],
-    "B1": [
+    "B1": [  # 雞胸 + 鮪魚 + 蛋：最精瘦
         ("07:00", "🌅 早餐", [("whey_2", 1), ("tea_egg", 1)]),
-        ("12:30", "🌞 午餐", [("costco_chicken_250", 1), ("broccoli", 1), ("olive_oil_5", 1)]),
-        ("19:00", "🌙 晚餐", [("tuna_can", 1), ("veg_boiled", 1), ("avocado_half", 1), ("almonds_10", 1), ("olive_oil_5", 1)]),
+        ("12:30", "🌞 午餐", [("costco_chicken_250", 1), ("broccoli", 1)]),
+        ("19:00", "🌙 晚餐", [("tuna_can", 1), ("sousvide_chicken", 1), ("veg_boiled", 1), ("whey_2", 1)]),
     ],
     "refeed": [
         ("07:00", "🌅 早餐", [("whey_2", 1), ("oats_40", 1)]),
@@ -42,7 +41,7 @@ _COMPOSITIONS: dict[str, list] = {
 
 _TITLES = {
     "A": "全乳清日 · 低脂",
-    "B0": "鮭魚 + 雞胸 + 酪梨",
+    "B0": "鮭魚 + 雞胸 · 精瘦",
     "B1": "Costco 雞胸 + 鮪魚 + 蛋",
     "refeed": "碳水回補日",
     "diet_break": "飲食假期 · 維持熱量",

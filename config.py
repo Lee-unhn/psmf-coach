@@ -63,17 +63,17 @@ GOAL_WEIGHT = _f("GOAL_WEIGHT", 75.0)
 PLAN_WEEKS = _i("PLAN_WEEKS", 18)
 
 # --- 營養目標 ---
-PROTEIN_G_PER_DAY = _i("PROTEIN_G_PER_DAY", 145)
+PROTEIN_G_PER_DAY = _i("PROTEIN_G_PER_DAY", 180)
 TDEE_ACTIVITY_FACTOR = _f("TDEE_ACTIVITY_FACTOR", 1.36)  # 久坐 + NEAT 走路
 WHEY_SCOOP_PROTEIN_G = 24
 WHEY_SCOOP_KCAL = 120
 
-# 各日型每日目標（B 固體日加必需脂肪降膽結石風險）
+# 各日型每日目標（高蛋白精瘦 PSMF：蛋白拉高、碳水脂肪壓低；脂肪守 ~20g 底線防膽結石）
 DAY_TARGETS = {
-    "A":          {"kcal": 950,  "protein": 150, "carb": 25, "fat": 28},
-    "B":          {"kcal": 1100, "protein": 145, "carb": 40, "fat": 47},
-    "refeed":     {"kcal": 1900, "protein": 150, "carb": 180, "fat": 45},
-    "diet_break": {"kcal": 2200, "protein": 150, "carb": 220, "fat": 60},
+    "A":          {"kcal": 1000, "protein": 180, "carb": 30, "fat": 20},
+    "B":          {"kcal": 1050, "protein": 180, "carb": 30, "fat": 28},
+    "refeed":     {"kcal": 1900, "protein": 180, "carb": 170, "fat": 35},
+    "diet_break": {"kcal": 2200, "protein": 180, "carb": 200, "fat": 45},
 }
 INTAKE_KCAL_TARGET = 1000
 WATER_L = _f("WATER_L", 3.6)

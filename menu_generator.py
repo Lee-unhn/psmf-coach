@@ -81,12 +81,20 @@ def _fill_macros(meals: list, target: dict) -> None:
         meals.append({"time": "加餐", "name": "🍚 補碳/脂", "items": items, "subtotal": total(items)})
 
 
-def generate_menu(decision: Decision, training_note: str,
-                  context: str = "", day_index: int = 1) -> tuple[dict, str]:
+_TITLE_TO_KEY = {v: k for k, v in _TITLES.items()}
+
+
+def generate_menu(decision: Decision, training_note: str, context: str = "",
+                  day_index: int = 1, prefer_title: str | None = None) -> tuple[dict, str]:
     dt = decision.day_type
     comp_key = dt
     if dt == "B":
-        comp_key = "B0" if day_index % 2 == 0 else "B1"
+        # 自我學習：多數天用「最依從」的變體，其餘維持變化避免單調
+        pref_key = _TITLE_TO_KEY.get(prefer_title) if prefer_title else None
+        if pref_key in ("B0", "B1") and day_index % 3 != 0:
+            comp_key = pref_key
+        else:
+            comp_key = "B0" if day_index % 2 == 0 else "B1"
 
     meals = []
     for time, name, parts in _COMPOSITIONS[comp_key]:

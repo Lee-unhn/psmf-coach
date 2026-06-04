@@ -218,9 +218,27 @@ def render_html(summary: dict, adjustments: list[dict]) -> str:
         f"目標 ~{summary.get('phase_kcal','—')} kcal · 蛋白 {summary.get('phase_protein','—')}g｜{nxt}</div>"
         f"<div style='color:#6a4fb0;font-size:13px;margin-top:4px'>{summary.get('phase_note','')}</div></div>")
 
+    # 🧠 自我學習偏好面板
+    pr = summary.get("prefs", {}) or {}
+    if pr.get("best_adhered") or pr.get("top_foods"):
+        tops = "、".join(f"{n}({c})" for n, c in (pr.get("top_foods") or [])[:5]) or "—"
+        prefs_panel = (
+            f"<div style='background:#e0f2f1;border-left:5px solid #00897b;border-radius:8px;"
+            f"padding:14px 16px;margin:0 0 14px 0'>"
+            f"<div style='font-size:16px;font-weight:bold;color:#00695c'>🧠 系統學到的偏好</div>"
+            f"<div style='color:#37474f;font-size:14px;margin-top:6px'>"
+            f"最依從菜單：<b>{pr.get('best_adhered') or '資料不足'}</b>"
+            f"（之後固體日會多排這種）｜最省：{pr.get('cheapest') or '—'}"
+            f"｜平均花費 NT${pr.get('avg_cost') or '—'}/天</div>"
+            f"<div style='color:#37474f;font-size:13px;margin-top:4px'>最常排品項：{tops}</div>"
+            f"<div style='color:#80897e;font-size:12px;margin-top:4px'>（依 {pr.get('n_days',0)} 天歷史；越多越準）</div></div>")
+    else:
+        prefs_panel = ""
+
     return f"""<html><body style="font-family:sans-serif;max-width:680px">
 <h2>PSMF 週報 — 第 {summary['week_no']} 週（{summary['today']}）</h2>
 {phase_panel}
+{prefs_panel}
 <table border=1 cellpadding=6 style="border-collapse:collapse">
 <tr><td>起始 → 目前</td><td>{summary['start_weight']} → <b>{summary['latest_weight']}</b> kg</td></tr>
 <tr><td>已減</td><td><b>{summary['lost']} kg</b>（{summary['rate']} kg/週）</td></tr>

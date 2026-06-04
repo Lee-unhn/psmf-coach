@@ -49,14 +49,18 @@ flowchart TD
   end
   DB[(SQLite\npsmf.db)]
   subgraph DAILY[每日 21:05]
-    R[規則引擎\n決定隔日日型]; M[菜單生成\nGemini/template]
+    PH[階段判定\nATTACK→…→MAINTAIN]
+    R[規則引擎\n決定隔日菜單]
+    M[菜單生成\n+ 每日醫學新知]
   end
   subgraph WEEK[每週日 09:00]
-    P[抓論文\nPubMed/EuropePMC]; A[趨勢分析\n重算 TDEE]
+    P[抓論文\nPubMed/EuropePMC]; A[趨勢分析\n重算 TDEE + 階段/偏好面板]
   end
+  LEARN[🧠 自我學習偏好\n最依從/最省/最常排]
   MAIL[📧 Email\n菜單卡 / 週報]
-  F1 & F2 & F3 --> DB --> R --> M --> MAIL
+  F1 & F2 & F3 --> DB --> PH --> R --> M --> MAIL
   DB --> A; P --> DB; A --> MAIL
+  DB --> LEARN -. 偏好回饋 .-> M
   M -. 記帳/menu .-> DB; A -. 調整 .-> DB
   </pre>
 </div>
@@ -121,14 +125,20 @@ mindmap
       本機表單
       Sheet 手動
     每日
+      階段判定
       規則引擎
       食材庫菜單
+      每日醫學新知
       記帳
       菜單卡 email
     每週
       抓論文
       趨勢/TDEE
       週報 email
+    自動進化
+      階段自動升階
+      自我學習偏好
+      研究每週更新
     安全
       電解質必需
       紅燈自檢

@@ -19,6 +19,7 @@ import config
 import db
 import emailer
 import phases
+import preferences
 import sheets
 from menu_generator import generate_menu
 from rule_engine import decide_next_day
@@ -113,7 +114,9 @@ def generate_for_date(target, dry_run: bool = False) -> dict:
         decision = decide_next_day(target, daily_logs, body_metrics, current_weight)
         block = phases.current_phase(current_weight)["block"]
         training_note = next_training_note(daily_logs, block)
-        menu, generated_by = generate_menu(decision, training_note, f"體重 {current_weight}kg", day_index)
+        prefs = preferences.learn_preferences(conn)            # 自我學習：偏好回饋
+        menu, generated_by = generate_menu(decision, training_note, f"體重 {current_weight}kg",
+                                           day_index, prefer_title=prefs.get("best_adhered"))
         menu["daily_finding"] = db.pick_daily_paper(conn, day_index)  # 每日一則權威新知
 
         db.upsert_menu_plan(conn, {

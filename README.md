@@ -17,7 +17,7 @@
 
 ## 專案簡介 / Overview
 
-PSMF-Coach 是一套自架的 PSMF（極低熱量蛋白質節約減脂法）個人教練自動化範本：每天回填體重/狀態 → 規則引擎決定隔日日型 → Gemini 或 template 生成完整菜單卡 email；每週日自動抓 PubMed/Europe PMC 最新論文、重算 TDEE、寄 HTML 週報。純 Python + SQLite + 免費 API（Gemini 免費額度、Gmail SMTP、Windows 工作排程），零月費。
+PSMF-Coach 是一套自架的 PSMF（極低熱量蛋白質節約減脂法）個人教練自動化範本：每天回填體重/狀態 → 規則引擎決定隔日日型 → Gemini 或 template 生成完整菜單卡 email；每週日自動抓 PubMed/Europe PMC 最新論文、重算 TDEE、寄 HTML 週報。系統隨體重**自動升階**（ATTACK→…→MAINTAIN，熱量逐步往上帶）、每天附一則**權威醫學新知**、並從歷史**自學菜單偏好**（最依從/最省/最常排）。純 Python + SQLite + 免費 API（Gemini 免費額度、Gmail SMTP、Windows 工作排程），零月費。
 
 > ⚠️ 醫療免責聲明：PSMF 是極低熱量飲食（VLCD），開始前請諮詢醫師並做基線抽血。本專案為衛教/資訊工具，不是醫療建議。詳見原 README。
 
@@ -37,7 +37,9 @@ flowchart TD
   WA["週趨勢分析\nweekly_analysis.py"]
   DJ["daily_job.py · 每日 21:05"]
   WJ["weekly_job.py · 週日 09:00"]
-  EM["emailer.py"]
+  PH["階段判定 · phases.py\nATTACK→…→MAINTAIN"]
+  LRN["自我學習偏好 · preferences.py"]
+  EM["emailer.py · 含每日醫學新知"]
   MAIL(["Email 菜單卡 / 週報"])
 
   U --> F1
@@ -46,12 +48,14 @@ flowchart TD
   F1 --> DB
   F2 --> DB
   F3 --> DB
-  DJ --> RE --> MG --> EM
+  DJ --> PH --> RE --> MG --> EM
   TP --> MG
   WJ --> RS --> DB
   WJ --> WA --> EM
   DB --> RE
   DB --> WA
+  DB --> LRN
+  LRN -. 偏好回饋 .-> MG
   EM --> MAIL
 ```
 
@@ -68,9 +72,11 @@ flowchart TD
 ## 主要檔案 / Key Files
 
 - `config.py` — 全域設定與門檻
-- `db.py` — SQLite schema、回填與菜單記錄
-- `rule_engine.py` — 規則引擎，根據近期趨勢決定隔日日型（A/B/碳水回補/飲食假期）
-- `menu_generator.py` + `foods.py` — 食材庫組菜單、算 macros 與價格
+- `phases.py` — 階段制度（隨體重自動升階 ATTACK→CRUISE→STABILIZE→MAINTAIN，門檻相對目標體重，熱量/碳水/訓練隨之變）
+- `preferences.py` — 自我學習（從菜單/依從/花費學「最依從/最省/最常排」回饋隔日菜單）
+- `db.py` — SQLite schema、回填與菜單記錄、每日醫學新知挑選
+- `rule_engine.py` — 規則引擎，依趨勢 + 階段決定隔日菜單（碳水回補/飲食假期）
+- `menu_generator.py` + `foods.py` — 食材庫組菜單、高階段補碳水/脂肪、算 macros 與價格
 - `daily_job.py` / `weekly_job.py` — 每日與週日的入口腳本
 - `research.py` + `weekly_analysis.py` — 論文抓取與趨勢分析（重算 BMR/TDEE）
 - `emailer.py` — HTML 菜單卡 / 週報寄送

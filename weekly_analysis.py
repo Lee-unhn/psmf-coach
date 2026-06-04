@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 import config
 import db
 import phases
+import preferences
 import research
 from rule_engine import scheduled_event, _avg
 
@@ -61,8 +62,10 @@ def build_summary(conn, today: date) -> dict:
     avg_en = _avg([d.get("energy") for d in logs7])
     gate = phases.gate_status(latest_w, avg_adh, avg_en)
     phase_target = phases.day_target(gate["phase"], "B")
+    prefs = preferences.learn_preferences(conn)   # 自我學習偏好
 
     return {
+        "prefs": prefs,
         "phase": gate["phase"]["name"], "phase_desc": gate["phase"]["desc"],
         "phase_kcal": phase_target["kcal"], "phase_protein": phase_target["protein"],
         "next_phase": gate["next"]["name"] if gate["next"] else None,

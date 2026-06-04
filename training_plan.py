@@ -31,15 +31,25 @@ HOME_SESSIONS: dict[str, list[str]] = {
 }
 _ROTATION = list(HOME_SESSIONS)
 
+# 訓練區塊（隨階段）：每週次數 + 焦點（借鏡 titan training-blocks）
+_BLOCK = {
+    0: (3, "動作學習 / 關節適應（重，RPE 6–7）"),
+    1: (4, "肌肥大基礎（RPE 7–8）"),
+    2: (4, "力量 + 體能（RPE 8，加間歇）"),
+    3: (5, "表現 / 專項（2-a-day 可選）"),
+}
 
-def next_training_note(daily_logs: list[dict]) -> str:
-    """daily_logs 最新在前。回傳隔日訓練建議。"""
+
+def next_training_note(daily_logs: list[dict], block: int = 0) -> str:
+    """daily_logs 最新在前；block 由現階段決定。回傳隔日訓練建議。"""
+    days_target, focus = _BLOCK.get(block, _BLOCK[0])
     trained_last7 = sum(1 for d in daily_logs[:7] if d.get("trained"))
     trained_yesterday = bool(daily_logs and daily_logs[0].get("trained"))
 
-    if trained_last7 >= config.TRAINING_DAYS_PER_WEEK or trained_yesterday:
-        return "🚶 走路 8,000–10,000 步 + 充分休息（恢復日）。"
+    if trained_last7 >= days_target or trained_yesterday:
+        return f"🚶 走路 8,000–10,000 步 + 充分休息（恢復日）。本區塊每週 {days_target} 練。"
 
     session = _ROTATION[trained_last7 % len(_ROTATION)]
     moves = "；".join(HOME_SESSIONS[session])
-    return f"🏋️ 重訓「{session}」：{moves}。組間休息 60–90 秒。"
+    return (f"🏋️ Block{block}·{focus}｜「{session}」：{moves}。組間休息 60–90 秒"
+            f"（每週目標 {days_target} 練）。")

@@ -31,7 +31,9 @@ PSMF is a **very-low-calorie diet (VLCD)** — one of the most aggressive fat-lo
 
 ## ✨ Features
 
-- **Dynamic daily menu** — picks the next day's type (all-whey / solid-meal / carb refeed / diet break) from your previous-day data + recent trend, and builds each meal from a food database with per-item macros + cost.
+- **Automatic phase progression** — as weight drops, auto-advances ATTACK → CRUISE → STABILIZE → MAINTAIN, **ramping calories/carbs up** (thresholds relative to your goal weight) + training block scales with phase.
+- **Daily research finding** — each menu email includes one authoritative paper of the week (peer-reviewed sources, rotates daily).
+- **Dynamic daily menu** — builds the next day's menu from your previous-day data + recent trend, with per-item macros + cost; higher phases auto-fill carbs/fat to target.
 - **Full menu-card email** — target vs achieved, per-meal breakdown, supplement schedule, 💰 daily spend, 🚨 red-flag self-check, training note, one-tap "log today" button. Mobile-friendly.
 - **Three logging methods** (mix freely): Google Form (anywhere) / local web form (instant) / Google Sheet (manual).
 - **Weekly research update** — auto-fetches latest PubMed + Europe PMC papers into SQLite, analyzes trend (rate / ETA / plateau / too-fast), recomputes BMR/TDEE from current weight, emails an HTML report (with cumulative cost).

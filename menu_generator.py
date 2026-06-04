@@ -12,7 +12,7 @@ from rule_engine import Decision
 
 # 各日型的餐點組合（time, meal_name, [(food_key, qty)]）。B 兩變體輪替增加變化。
 _COMPOSITIONS: dict[str, list] = {
-    "A": [  # 全乳清 + 精瘦蛋白：高蛋白、低脂、低碳
+    "A": [  # 全乳清 + 精瘦蛋白（保留備用）
         ("07:00", "🌅 早餐", [("whey_2", 1)]),
         ("12:30", "🌞 午餐", [("whey_2", 1), ("broccoli", 1)]),
         ("19:00", "🌙 晚餐", [("whey_2", 1), ("tuna_can", 1), ("sousvide_chicken", 1), ("veg_boiled", 1)]),
@@ -20,12 +20,12 @@ _COMPOSITIONS: dict[str, list] = {
     "B0": [  # Costco 雞胸 + 鮭魚：精瘦，僅留必需脂肪
         ("07:00", "🌅 早餐", [("whey_2", 1)]),
         ("12:30", "🌞 午餐", [("costco_chicken_250", 1), ("broccoli", 1)]),
-        ("19:00", "🌙 晚餐", [("salmon_ready", 1), ("sousvide_chicken", 1), ("veg_boiled", 1), ("whey_2", 1)]),
+        ("19:00", "🌙 晚餐", [("salmon_ready", 1), ("sousvide_chicken", 1), ("veg_boiled", 1), ("whey_2", 1), ("whey_1", 1)]),
     ],
     "B1": [  # 雞胸 + 鮪魚 + 蛋：最精瘦
         ("07:00", "🌅 早餐", [("whey_2", 1), ("tea_egg", 1)]),
         ("12:30", "🌞 午餐", [("costco_chicken_250", 1), ("broccoli", 1)]),
-        ("19:00", "🌙 晚餐", [("tuna_can", 1), ("sousvide_chicken", 1), ("veg_boiled", 1), ("whey_2", 1)]),
+        ("19:00", "🌙 晚餐", [("tuna_can", 1), ("sousvide_chicken", 1), ("veg_boiled", 1), ("whey_2", 1), ("whey_1", 1)]),
     ],
     "refeed": [
         ("07:00", "🌅 早餐", [("whey_2", 1), ("oats_40", 1)]),
@@ -62,6 +62,25 @@ def _coach_tip(decision: Decision, context: str) -> str | None:
         return None
 
 
+def _fill_macros(meals: list, target: dict) -> None:
+    """精瘦蛋白底 + 依階段把碳水/脂肪補到目標（高階段才會補）。就地改 meals。"""
+    ach = total([i for m in meals for i in m["items"]])
+    extra = []
+    carb_gap = target["carb"] - ach["carb"]
+    while carb_gap > 25 and len(extra) < 6:
+        key = "rice_bowl" if carb_gap > 45 else "sweet_potato"
+        extra.append(key)
+        carb_gap -= foods.FOODS[key]["carb"]
+    fat_gap = target["fat"] - ach["fat"]
+    while fat_gap > 9 and len(extra) < 9:
+        key = "avocado_half" if fat_gap > 10 else "olive_oil_5"
+        extra.append(key)
+        fat_gap -= foods.FOODS[key]["fat"]
+    if extra:
+        items = [line_item(k, 1) for k in extra]
+        meals.append({"time": "加餐", "name": "🍚 補碳/脂", "items": items, "subtotal": total(items)})
+
+
 def generate_menu(decision: Decision, training_note: str,
                   context: str = "", day_index: int = 1) -> tuple[dict, str]:
     dt = decision.day_type
@@ -73,11 +92,11 @@ def generate_menu(decision: Decision, training_note: str,
     for time, name, parts in _COMPOSITIONS[comp_key]:
         items = [line_item(k, q) for k, q in parts]
         meals.append({"time": time, "name": name, "items": items, "subtotal": total(items)})
-    achieved = total([i for m in meals for i in m["items"]])
 
-    target = config.DAY_TARGETS.get(dt, config.DAY_TARGETS["A"]).copy()
-    if dt in ("refeed", "diet_break"):
-        target["kcal"] = round(decision.kcal_target)
+    target = {"kcal": round(decision.kcal_target), "protein": decision.protein_target,
+              "carb": decision.carb_target, "fat": decision.fat_target}
+    _fill_macros(meals, target)   # 高階段(CRUISE+)補碳水/脂肪到目標
+    achieved = total([i for m in meals for i in m["items"]])
 
     tip = _coach_tip(decision, context)
     generated_by = "template+gemini-tip" if tip else "template"
@@ -91,6 +110,7 @@ def generate_menu(decision: Decision, training_note: str,
     menu = {
         "day_index": day_index,
         "phase": dt,
+        "diet_phase": decision.phase_name,
         "title": _TITLES.get(comp_key, ""),
         "target": target,
         "achieved": achieved,

@@ -9,8 +9,9 @@ from datetime import date, datetime, timedelta
 
 import config
 import db
+import phases
 import research
-from rule_engine import scheduled_event
+from rule_engine import scheduled_event, _avg
 
 
 def _week_no(today: date) -> int:
@@ -54,7 +55,18 @@ def build_summary(conn, today: date) -> dict:
     week_cost = db.cost_since(conn, week_start)
     total_cost = db.cost_since(conn, config.START_DATE.isoformat())
 
+    # 階段狀態（借鏡 titan）：現階段 + 距下一階段門檻 + 依從/能量閘門
+    logs7 = db.recent_daily_logs(conn, 7)
+    avg_adh = _avg([d.get("adherence") for d in logs7])
+    avg_en = _avg([d.get("energy") for d in logs7])
+    gate = phases.gate_status(latest_w, avg_adh, avg_en)
+    phase_target = phases.day_target(gate["phase"], "B")
+
     return {
+        "phase": gate["phase"]["name"], "phase_desc": gate["phase"]["desc"],
+        "phase_kcal": phase_target["kcal"], "phase_protein": phase_target["protein"],
+        "next_phase": gate["next"]["name"] if gate["next"] else None,
+        "to_gate_kg": gate["to_gate_kg"], "phase_note": gate["note"],
         "week_no": week_no, "today": today.isoformat(),
         "start_weight": start_w, "latest_weight": round(latest_w, 1),
         "lost": round(lost, 1), "rate": round(rate, 2),

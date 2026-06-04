@@ -64,12 +64,13 @@ def render_menu_html(menu_date: str, menu: dict, summary: str) -> str:
 
     t, a = menu["target"], menu["achieved"]
     phase = menu.get("phase", "A")
+    dphase = menu.get("diet_phase", "")
 
     # Header（深靛 + Phase pill）
     header = (f"<div style='background:#1a237e;color:#fff;padding:14px 16px;border-radius:6px;margin:0 0 12px 0'>"
               f"<span style='font-size:18px;font-weight:bold'>PSMF · DAY {menu['day_index']}</span>"
               f"<span style='background:#3949ab;color:#fff;font-size:12px;font-weight:bold;"
-              f"padding:2px 8px;border-radius:10px;margin-left:6px'>Phase {phase}</span><br>"
+              f"padding:2px 8px;border-radius:10px;margin-left:6px'>{dphase} · {phase}日</span><br>"
               f"<span style='font-size:13px;color:#c5cae9'>{date_line} · {menu['title']}</span></div>")
 
     # 教練提示（琥珀）
@@ -137,17 +138,38 @@ def render_menu_html(menu_date: str, menu: dict, summary: str) -> str:
                f"🚨 紅燈自檢（任一勾選 → 立刻回填表單）</div>"
                f"<div style='font-size:13px;line-height:1.9;color:#5c1a16'>{flags}</div>{stop}</div>")
 
-    # 提醒（藍灰）
+    # 提醒（藍灰）。回填按鈕只在有設 FORM_FILL_URL 時顯示。
+    fill_btn = ""
+    if config.FORM_FILL_URL:
+        fill_btn = (f"<div style='text-align:center;margin-top:10px'>"
+                    f"<a href='{config.FORM_FILL_URL}' style='display:inline-block;background:#1a237e;"
+                    f"color:#fff;font-weight:bold;font-size:15px;text-decoration:none;"
+                    f"padding:12px 22px;border-radius:8px'>📲 點我回填今日資料</a>"
+                    f"<div style='color:#90a4ae;font-size:12px;margin-top:6px'>今晚 22:00 前填，明天菜單依此調整</div>"
+                    f"</div>")
     rem_body = (f"<div style='font-size:13px;line-height:1.7;color:#37474f'>"
                 f"🏋️ 訓練：{menu['training_note']}<br>"
                 f"💧 水分：{' / '.join(menu['water_times'])} 各 500ml（共 ≥ {menu['water_l']}L）</div>"
-                f"<div style='text-align:center;margin-top:10px'>"
-                f"<a href='{config.FORM_FILL_URL}' style='display:inline-block;background:#1a237e;"
-                f"color:#fff;font-weight:bold;font-size:15px;text-decoration:none;"
-                f"padding:12px 22px;border-radius:8px'>📲 點我回填今日資料</a>"
-                f"<div style='color:#90a4ae;font-size:12px;margin-top:6px'>今晚 22:00 前填，明天菜單依此調整</div>"
-                f"</div>")
+                + fill_btn)
     reminders = _card("#eceff1", "#607d8b", "#37474f", "📋 提醒", rem_body)
+
+    # 📚 今日醫學新知（從每週更新的研究 DB 挑一則權威論文）
+    fnd = menu.get("daily_finding")
+    finding = ""
+    if fnd:
+        yr = fnd.get("year") or "—"
+        summ = (fnd.get("summary") or "").strip()
+        summ = (summ[:220] + "…") if len(summ) > 220 else summ
+        finding = (f"<div style='background:#e3f2fd;border-left:4px solid #1976d2;border-radius:6px;"
+                   f"padding:12px 14px;margin:0 0 12px 0'>"
+                   f"<div style='font-size:15px;font-weight:bold;color:#0d47a1;margin:0 0 6px 0'>"
+                   f"📚 今日醫學新知</div>"
+                   f"<a href='{fnd.get('url','')}' style='color:#0d47a1;font-weight:bold;font-size:14px;"
+                   f"text-decoration:none'>{fnd.get('title','')}</a>"
+                   f"<div style='color:#37474f;font-size:13px;margin-top:4px'>{summ}</div>"
+                   f"<div style='color:#607d8b;font-size:12px;margin-top:4px'>"
+                   f"來源：{fnd.get('source','')} · {yr} · <a href='{fnd.get('url','')}' "
+                   f"style='color:#1976d2'>看原文</a></div></div>")
 
     footer = ("<div style='color:#90a4ae;font-size:12px;margin-top:16px'>"
               "本菜單為衛教資訊非醫療處方；電解質為每日必需。如有紅燈症狀請就醫。</div>")
@@ -155,7 +177,7 @@ def render_menu_html(menu_date: str, menu: dict, summary: str) -> str:
     return (f"<html><body style='margin:0;padding:0;background:#f4f5f7'>"
             f"<div style='font-family:-apple-system,\"Helvetica Neue\",Arial,sans-serif;"
             f"max-width:600px;margin:0 auto;padding:14px;color:#222'>"
-            f"{header}{tip}{targets}{meals_html}{supps}{cost}{redflag}{reminders}{footer}"
+            f"{header}{tip}{targets}{meals_html}{supps}{cost}{finding}{redflag}{reminders}{footer}"
             f"</div></body></html>")
 
 
@@ -185,12 +207,24 @@ def render_html(summary: dict, adjustments: list[dict]) -> str:
     plateau = "⚠️ 偵測到停滯" if summary["plateau"] else "正常下降"
     upcoming = "、".join(f"{d}:{e}" for d, e in summary["upcoming"]) or "無"
 
+    nxt = (f"距 <b>{summary['next_phase']}</b> 還需減 {summary['to_gate_kg']} kg"
+           if summary.get("next_phase") else "已在最終階段")
+    phase_panel = (
+        f"<div style='background:#ede7f6;border-left:5px solid #5e35b1;border-radius:8px;"
+        f"padding:14px 16px;margin:0 0 14px 0'>"
+        f"<div style='font-size:16px;font-weight:bold;color:#4527a0'>📈 現階段：{summary.get('phase','—')}</div>"
+        f"<div style='color:#37474f;font-size:14px;margin-top:4px'>{summary.get('phase_desc','')}</div>"
+        f"<div style='color:#37474f;font-size:14px;margin-top:6px'>"
+        f"目標 ~{summary.get('phase_kcal','—')} kcal · 蛋白 {summary.get('phase_protein','—')}g｜{nxt}</div>"
+        f"<div style='color:#6a4fb0;font-size:13px;margin-top:4px'>{summary.get('phase_note','')}</div></div>")
+
     return f"""<html><body style="font-family:sans-serif;max-width:680px">
 <h2>PSMF 週報 — 第 {summary['week_no']} 週（{summary['today']}）</h2>
+{phase_panel}
 <table border=1 cellpadding=6 style="border-collapse:collapse">
 <tr><td>起始 → 目前</td><td>{summary['start_weight']} → <b>{summary['latest_weight']}</b> kg</td></tr>
 <tr><td>已減</td><td><b>{summary['lost']} kg</b>（{summary['rate']} kg/週）</td></tr>
-<tr><td>距目標 75kg</td><td>{summary['to_goal']} kg（預估 {eta}）</td></tr>
+<tr><td>距目標 {config.GOAL_WEIGHT}kg</td><td>{summary['to_goal']} kg（預估 {eta}）</td></tr>
 <tr><td>本週狀態</td><td>{plateau}</td></tr>
 <tr><td>重算 BMR / TDEE</td><td>{summary['bmr']} / {summary['tdee']} kcal</td></tr>
 <tr><td>未來 7 天排定</td><td>{upcoming}</td></tr>

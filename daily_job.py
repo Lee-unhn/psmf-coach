@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta
 import config
 import db
 import emailer
+import phases
 import sheets
 from menu_generator import generate_menu
 from rule_engine import decide_next_day
@@ -100,37 +101,30 @@ def _seed_mock() -> None:
     sheets.MOCK_LOG.write_text(json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def process_log(log: dict, dry_run: bool = False) -> dict:
-    """核心：吃一筆回填 → 寫 DB → 生隔日菜單 → 記帳 → email。表單與排程共用。"""
+def generate_for_date(target, dry_run: bool = False) -> dict:
+    """為指定日期生成菜單 → 記帳 → email。用最新的 DB 數據（不依賴某筆回填的日期）。"""
     db.init_db()
     with db.connect() as conn:
-        log_date = ingest_log(conn, log)
         daily_logs = db.recent_daily_logs(conn, 7)
         body_metrics = db.recent_body_metrics(conn, 14)
         current_weight = db.latest_weight(conn) or config.START_WEIGHT
 
-        target = datetime.strptime(log_date, "%Y-%m-%d").date() + timedelta(days=1)
         day_index = (target - config.START_DATE).days + 1
         decision = decide_next_day(target, daily_logs, body_metrics, current_weight)
-        training_note = next_training_note(daily_logs)
-        context = f"今日 notes: {log.get('notes', '')}; 體重 {current_weight}kg"
-        menu, generated_by = generate_menu(decision, training_note, context, day_index)
+        block = phases.current_phase(current_weight)["block"]
+        training_note = next_training_note(daily_logs, block)
+        menu, generated_by = generate_menu(decision, training_note, f"體重 {current_weight}kg", day_index)
+        menu["daily_finding"] = db.pick_daily_paper(conn, day_index)  # 每日一則權威新知
 
         db.upsert_menu_plan(conn, {
-            "date": target.isoformat(),
-            "day_type": decision.day_type,
-            "kcal_target": decision.kcal_target,
-            "protein_target": decision.protein_target,
-            "menu_json": json.dumps(menu, ensure_ascii=False),
-            "training_note": training_note,
-            "reason": decision.reason,
-            "generated_by": generated_by,
+            "date": target.isoformat(), "day_type": decision.day_type,
+            "kcal_target": decision.kcal_target, "protein_target": decision.protein_target,
+            "menu_json": json.dumps(menu, ensure_ascii=False), "training_note": training_note,
+            "reason": decision.reason, "generated_by": generated_by,
         })
         db.upsert_cost_log(conn, {
-            "date": target.isoformat(),
-            "food_cost": menu["food_cost"],
-            "supplement_cost": menu["supp_cost"],
-            "total_cost": menu["total_cost"],
+            "date": target.isoformat(), "food_cost": menu["food_cost"],
+            "supplement_cost": menu["supp_cost"], "total_cost": menu["total_cost"],
         })
 
     summary = f"日型 {decision.day_type}｜{decision.reason}（by {generated_by}）"
@@ -140,27 +134,40 @@ def process_log(log: dict, dry_run: bool = False) -> dict:
             "email_status": email_status, "training_note": training_note}
 
 
+def process_log(log: dict, dry_run: bool = False) -> dict:
+    """表單即時用：吃一筆回填 → 寫 DB → 生「該回填日 + 1」菜單 + email。"""
+    db.init_db()
+    with db.connect() as conn:
+        log_date = ingest_log(conn, log)
+    target = datetime.strptime(log_date, "%Y-%m-%d").date() + timedelta(days=1)
+    return generate_for_date(target, dry_run=dry_run)
+
+
 def run(dry_run: bool = False) -> None:
+    """每日排程：有新回填就吃進 DB 更新數據，然後**固定寄「明天」菜單**（即使今天沒填也照寄）。"""
     db.init_db()
     provider = sheets.MockSheet() if dry_run else sheets.get_provider()
     if dry_run:
         _seed_mock()
 
     log = provider.read_today_log()
-    if not log:
-        print("⚠️ 今日無回填資料，跳過。請在 Google Sheet 或表單填寫後再跑。")
-        return
+    if log:
+        with db.connect() as conn:
+            ingest_log(conn, log)
+        print("✅ 已讀取最新回填並更新數據。")
+    else:
+        print("ℹ️ 今天沒新回填 → 用最新已知數據生成明天菜單。")
 
-    r = process_log(log, dry_run=dry_run)
+    target = date.today() + timedelta(days=1)
+    r = generate_for_date(target, dry_run=dry_run)
     try:
         provider.write_menu(r["target"].isoformat(), r["menu"], r["summary"])
     except Exception as exc:  # noqa: BLE001
         print(f"[sheets] 回寫略過：{exc}")
 
     a = r["menu"]["achieved"]
-    print(f"✅ 已生成 {r['target']} 隔日菜單 DAY{r['day_index']} Phase{r['decision'].day_type}"
+    print(f"✅ 已寄 {r['target']} 菜單 DAY{r['day_index']} Phase{r['decision'].day_type}"
           f"（{r['generated_by']}）｜email={r['email_status']}")
-    print(f"   {r['summary']}")
     print(f"   達成 {a['kcal']} kcal / P{a['protein']} C{a['carb']} F{a['fat']} / NT${a['cost']}")
     if r["decision"].flag_for_weekly:
         print("   🔎 已標記給週日深度分析。")

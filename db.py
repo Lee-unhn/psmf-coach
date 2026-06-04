@@ -114,6 +114,19 @@ def upsert_cost_log(conn: sqlite3.Connection, row: dict) -> None:
     _upsert(conn, "cost_log", row)
 
 
+def pick_daily_paper(conn: sqlite3.Connection, day_index: int) -> dict | None:
+    """挑一則「當週可信權威」論文當每日新知。只取同儕審查來源；依 day_index 每天輪不同篇。"""
+    cur = conn.execute(
+        "SELECT title, url, year, summary, source FROM research_papers "
+        "WHERE source IN ('PubMed','EuropePMC','PMC','Nature') AND relevance_score >= 0.7 "
+        "ORDER BY relevance_score DESC, year DESC, fetched_at DESC LIMIT 20"
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+    if not rows:
+        return None
+    return rows[day_index % len(rows)]
+
+
 def cost_since(conn: sqlite3.Connection, start_date: str) -> dict:
     """回傳 >= start_date 的花費加總與天數。"""
     cur = conn.execute(

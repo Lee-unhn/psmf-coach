@@ -39,6 +39,7 @@ flowchart TD
   WJ["weekly_job.py · 週日 09:00"]
   PH["階段判定 · phases.py\nATTACK→…→MAINTAIN"]
   LRN["自我學習偏好 · preferences.py"]
+  MET["有效 TDEE 反推 · metabolism.py\n實測體重趨勢→TDEE"]
   EM["emailer.py · 含每日醫學新知"]
   MAIL(["Email 菜單卡 / 週報"])
 
@@ -55,7 +56,10 @@ flowchart TD
   DB --> RE
   DB --> WA
   DB --> LRN
+  DB --> MET
   LRN -. 偏好回饋 .-> MG
+  MET -. 實測 TDEE .-> RE
+  MET -. 實測 TDEE .-> WA
   EM --> MAIL
 ```
 
@@ -74,6 +78,7 @@ flowchart TD
 - `config.py` — 全域設定與門檻
 - `phases.py` — 階段制度（隨體重自動升階 ATTACK→CRUISE→STABILIZE→MAINTAIN，門檻相對目標體重，熱量/碳水/訓練隨之變）
 - `preferences.py` — 自我學習（從菜單/依從/花費學「最依從/最省/最常排」回饋隔日菜單）
+- `metabolism.py` — 有效 TDEE：用實測體重趨勢反推代謝率（比公式準，每次量測自動更新；資料不足退回 Mifflin 公式）
 - `db.py` — SQLite schema、回填與菜單記錄、每日醫學新知挑選
 - `rule_engine.py` — 規則引擎，依趨勢 + 階段決定隔日菜單（碳水回補/飲食假期）
 - `menu_generator.py` + `foods.py` — 食材庫組菜單、高階段補碳水/脂肪、算 macros 與價格

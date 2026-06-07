@@ -9,6 +9,7 @@ from datetime import date, datetime, timedelta
 
 import config
 import db
+import metabolism
 import phases
 import preferences
 import research
@@ -41,7 +42,7 @@ def build_summary(conn, today: date) -> dict:
                and (recent14[0]["weight"] - recent14[-1]["weight"]) < 0.3)
 
     bmr = config.bmr_mifflin(latest_w)
-    tdee = config.tdee(latest_w)
+    tdee, tdee_src = metabolism.effective_tdee(conn, latest_w)
 
     # 接下來 7 天的排定事件
     upcoming = []
@@ -75,7 +76,7 @@ def build_summary(conn, today: date) -> dict:
         "lost": round(lost, 1), "rate": round(rate, 2),
         "to_goal": round(to_goal, 1),
         "weeks_left_est": round(weeks_left_est, 1) if weeks_left_est else None,
-        "bmr": round(bmr), "tdee": round(tdee),
+        "bmr": round(bmr), "tdee": round(tdee), "tdee_src": tdee_src,
         "plateau": plateau, "upcoming": upcoming,
         "papers": with_papers,
         "week_cost": week_cost, "total_cost": total_cost,
@@ -85,11 +86,13 @@ def build_summary(conn, today: date) -> dict:
 def build_adjustments(summary: dict) -> list[dict]:
     """純規則調整建議；每項可附證據。"""
     adj = []
-    # 1. 每週按現體重重算 TDEE
+    # 1. 每週重算 TDEE（measured=實測反推；formula=資料不足退回公式）
+    src = summary.get("tdee_src", "formula")
+    basis = "實測體重趨勢反推" if src.startswith("measured") else "資料不足，暫用 Mifflin 公式"
     adj.append({
         "field": "tdee", "old_value": str(round(config.tdee(config.START_WEIGHT))),
-        "new_value": str(summary["tdee"]),
-        "reason": f"依現體重 {summary['latest_weight']}kg 重算 TDEE，維持缺口準確。",
+        "new_value": f"{summary['tdee']}（{basis}）",
+        "reason": f"TDEE 估計法：{src}。" + ("等 ≥3 次每週量測、跨距≥14 天才切換成實測。" if src == "formula" else "已用真實數據反推。"),
     })
     # 2. 停滯處理
     if summary["plateau"]:

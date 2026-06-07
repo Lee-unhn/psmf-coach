@@ -59,9 +59,11 @@ def _weight_stalled(body_metrics: list[dict]) -> bool:
 
 
 def decide_next_day(target: date, daily_logs: list[dict],
-                    body_metrics: list[dict], current_weight: float) -> Decision:
-    """daily_logs / body_metrics 皆為最新在前 (DESC)。階段由現體重自動決定。"""
-    maintenance = config.tdee(current_weight)
+                    body_metrics: list[dict], current_weight: float,
+                    maintenance_override: float | None = None) -> Decision:
+    """daily_logs / body_metrics 皆為最新在前 (DESC)。階段由現體重自動決定。
+    maintenance_override = 實測反推 TDEE（無則退回 Mifflin 公式）。"""
+    maintenance = maintenance_override or config.tdee(current_weight)
     phase = phases.current_phase(current_weight)
 
     event = scheduled_event(target)

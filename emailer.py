@@ -244,7 +244,7 @@ def render_html(summary: dict, adjustments: list[dict]) -> str:
 <tr><td>已減</td><td><b>{summary['lost']} kg</b>（{summary['rate']} kg/週）</td></tr>
 <tr><td>距目標 {config.GOAL_WEIGHT}kg</td><td>{summary['to_goal']} kg（預估 {eta}）</td></tr>
 <tr><td>本週狀態</td><td>{plateau}</td></tr>
-<tr><td>重算 BMR / TDEE</td><td>{summary['bmr']} / {summary['tdee']} kcal</td></tr>
+<tr><td>BMR / TDEE</td><td>{summary['bmr']} / <b>{summary['tdee']}</b> kcal（TDEE 來源：{summary.get('tdee_src','formula')}）</td></tr>
 <tr><td>未來 7 天排定</td><td>{upcoming}</td></tr>
 <tr><td>本週花費</td><td>NT${round(summary['week_cost']['total'])}（{summary['week_cost']['days']} 天）· 食材 NT${round(summary['week_cost']['food'])} + 補劑 NT${round(summary['week_cost']['supp'])}</td></tr>
 <tr><td>累計花費</td><td>NT${round(summary['total_cost']['total'])}（{summary['total_cost']['days']} 天，日均 NT${round(summary['total_cost']['total']/max(summary['total_cost']['days'],1))}）</td></tr>

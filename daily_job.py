@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta
 import config
 import db
 import emailer
+import metabolism
 import phases
 import preferences
 import sheets
@@ -111,7 +112,9 @@ def generate_for_date(target, dry_run: bool = False) -> dict:
         current_weight = db.latest_weight(conn) or config.START_WEIGHT
 
         day_index = (target - config.START_DATE).days + 1
-        decision = decide_next_day(target, daily_logs, body_metrics, current_weight)
+        eff_tdee, _src = metabolism.effective_tdee(conn, current_weight)
+        decision = decide_next_day(target, daily_logs, body_metrics, current_weight,
+                                   maintenance_override=eff_tdee)
         block = phases.current_phase(current_weight)["block"]
         training_note = next_training_note(daily_logs, block)
         prefs = preferences.learn_preferences(conn)            # 自我學習：偏好回饋

@@ -1,104 +1,92 @@
-# PSMF-Coach
+# PSMF-Coach · 個人化 PSMF 減脂教練系統
 
-> 自動化的 PSMF（蛋白質節約型減脂）個人教練系統範本：每日動態菜單卡 + 週日論文/趨勢自動更新，純 Python 零月費。
+**English** · [中文說明見下 ↓](#中文說明)
 
-**Author**: [@Lee-unhn](https://github.com/Lee-unhn) · a2264563@gmail.com
+Self-hosted PSMF (Protein-Sparing Modified Fast) diet-coaching automation. You log a
+daily check-in (a local form, a Google Form, or a Google Sheet); it generates the next
+day's full menu card and emails it to you. Every Sunday it pulls the latest papers +
+trends, recomputes your TDEE, and emails a weekly report. Python · SQLite · free APIs.
 
-<p align="center"><img src="docs/banner.svg" alt="PSMF-Coach" width="760"></p>
+> Author: **JasonLee** · Template — bring your own data (personal data lives in `data/`, gitignored).
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
-  <a href="https://github.com/Lee-unhn/psmf-coach/releases"><img src="https://img.shields.io/github/v/release/Lee-unhn/psmf-coach" alt="Release"></a>
-  <img src="https://img.shields.io/badge/python-3.12-blue.svg" alt="Python 3.12">
-  <img src="https://img.shields.io/badge/cost-free%20APIs-brightgreen.svg" alt="Free APIs">
-</p>
-
-<p align="center"><a href="README.en.md">English</a> | <b>中文</b></p>
-
-## 專案簡介 / Overview
-
-PSMF-Coach 是一套自架的 PSMF（極低熱量蛋白質節約減脂法）個人教練自動化範本：每天回填體重/狀態 → 規則引擎決定隔日日型 → Gemini 或 template 生成完整菜單卡 email；每週日自動抓 PubMed/Europe PMC 最新論文、重算 TDEE、寄 HTML 週報。系統隨體重**自動升階**（ATTACK→…→MAINTAIN，熱量逐步往上帶）、每天附一則**權威醫學新知**、並從歷史**自學菜單偏好**（最依從/最省/最常排）。純 Python + SQLite + 免費 API（Gemini 免費額度、Gmail SMTP、Windows 工作排程），零月費。
-
-> ⚠️ 醫療免責聲明：PSMF 是極低熱量飲食（VLCD），開始前請諮詢醫師並做基線抽血。本專案為衛教/資訊工具，不是醫療建議。詳見原 README。
-
-## 架構 / Architecture
+## Architecture
 
 ```mermaid
-flowchart TD
-  U([使用者])
-  F1["Google 表單"]
-  F2["本機表單 form.py"]
-  F3["Google Sheet · sheets.py"]
-  DB[("SQLite · psmf.db\ndb.py")]
-  RE["規則引擎\nrule_engine.py"]
-  MG["菜單生成器\nmenu_generator.py + foods.py"]
-  TP["訓練計畫\ntraining_plan.py"]
-  RS["論文抓取\nresearch.py"]
-  WA["週趨勢分析\nweekly_analysis.py"]
-  DJ["daily_job.py · 每日 21:05"]
-  WJ["weekly_job.py · 週日 09:00"]
-  PH["階段判定 · phases.py\nATTACK→…→MAINTAIN"]
-  LRN["自我學習偏好 · preferences.py"]
-  MET["有效 TDEE 反推 · metabolism.py\n實測體重趨勢→TDEE"]
-  EM["emailer.py · 含每日醫學新知"]
-  MAIL(["Email 菜單卡 / 週報"])
+flowchart LR
+  classDef uin fill:#74c7ec,stroke:#1e66f5,color:#1e1e2e;
+  classDef pipe fill:#f9e2af,stroke:#df8e1d,color:#1e1e2e;
+  classDef model fill:#a6e3a1,stroke:#40a02b,color:#1e1e2e;
+  classDef out fill:#f5c2e7,stroke:#ea76cb,color:#1e1e2e;
+  classDef worker fill:#94e2d5,stroke:#179299,color:#1e1e2e;
 
-  U --> F1
-  U --> F2
-  U --> F3
-  F1 --> DB
-  F2 --> DB
-  F3 --> DB
-  DJ --> PH --> RE --> MG --> EM
-  TP --> MG
-  WJ --> RS --> DB
-  WJ --> WA --> EM
-  DB --> RE
-  DB --> WA
-  DB --> LRN
-  DB --> MET
-  LRN -. 偏好回饋 .-> MG
-  MET -. 實測 TDEE .-> RE
-  MET -. 實測 TDEE .-> WA
-  EM --> MAIL
+  FORM([Daily check-in: form.py :8765 / Google Form / Sheet]):::uin
+  SCHD[/schedule · daily 21:05/]:::worker
+  SCHW[/schedule · Sunday 09:00/]:::worker
+  SH[(Google Sheet check-in · gviz CSV)]:::model
+  subgraph DAILY[Daily · daily_job.py]
+    RE[/rule_engine · day-type/]:::pipe
+    MG[/menu_generator · Gemini or template/]:::pipe
+  end
+  subgraph WEEKLY[Weekly · weekly_job.py]
+    WA[/weekly_analysis · stall detect + TDEE recompute/]:::pipe
+    RES[/research · PubMed / EuropePMC / Semantic Scholar/]:::pipe
+    MD[/make_docs · HTML/]:::pipe
+  end
+  DB[(SQLite · db.py)]:::model
+  GEM[(Gemini free)]:::model
+  EM[emailer · SMTP]:::out
+  DM[Daily menu email]:::out
+  WR[Weekly report email]:::out
+  DOC[docs: 18-week plan / shopping list]:::out
+
+  FORM --> SH
+  SCHD -.-> RE
+  SH --> RE --> MG --> EM --> DM
+  MG --> GEM
+  RE --> DB
+  SCHW -.-> WA
+  WA --> RES --> MD --> EM --> WR
+  WA --> DB
+  MD --> DOC
 ```
 
-## 技術棧 / Tech Stack
+## Quick start (no keys)
+```powershell
+cd psmf-coach
+python init_baseline.py        # build DB + baseline row
+python daily_job.py --dry-run  # generate next-day menu from sample data
+```
 
-- Python 3.12
-- SQLite（`db.py`）做資料持久化
-- Gemini 免費額度（菜單與週報 LLM）
-- PubMed / Europe PMC / Semantic Scholar 免費 API（論文抓取）
-- Gmail SMTP（`emailer.py`）寄信
-- Google Sheets / 本機 HTML 表單（三種回填方式並存）
-- Windows 工作排程（`install_autostart.py`）每日 21:05 + 週日 09:00
+## Modules
+| File | Role |
+|---|---|
+| `config.py` / `db.py` | profile + targets + key loading / SQLite schema (8 tables) |
+| `rule_engine.py` | decides next-day type (A / B / refeed / diet-break) from check-in + trend |
+| `menu_generator.py` | next-day menu card (Gemini, template fallback) |
+| `sheets.py` | Google Sheet read (gviz CSV, no service account) |
+| `daily_job.py` | daily orchestration (21:05) → menu email |
+| `weekly_analysis.py` / `research.py` / `weekly_job.py` | stall + TDEE recompute / paper fetch / weekly report email (Sun 09:00) |
+| `make_docs.py` | 18-week plan + shopping list → `docs/` |
+| `form.py` | local check-in form (`http://localhost:8765`) → instant menu |
 
-## 主要檔案 / Key Files
+Setup & keys: [SETUP.md](SETUP.md) · Full plan / evidence: [PSMF-COACH.md](PSMF-COACH.md)
 
-- `config.py` — 全域設定與門檻
-- `phases.py` — 階段制度（隨體重自動升階 ATTACK→CRUISE→STABILIZE→MAINTAIN，門檻相對目標體重，熱量/碳水/訓練隨之變）
-- `preferences.py` — 自我學習（從菜單/依從/花費學「最依從/最省/最常排」回饋隔日菜單）
-- `metabolism.py` — 有效 TDEE：用實測體重趨勢反推代謝率（比公式準，每次量測自動更新；資料不足退回 Mifflin 公式）
-- `db.py` — SQLite schema、回填與菜單記錄、每日醫學新知挑選
-- `rule_engine.py` — 規則引擎，依趨勢 + 階段決定隔日菜單（碳水回補/飲食假期）
-- `menu_generator.py` + `foods.py` — 食材庫組菜單、高階段補碳水/脂肪、算 macros 與價格
-- `daily_job.py` / `weekly_job.py` — 每日與週日的入口腳本
-- `research.py` + `weekly_analysis.py` — 論文抓取與趨勢分析（重算 BMR/TDEE）
-- `emailer.py` — HTML 菜單卡 / 週報寄送
-- `verify_setup.py` / `install_autostart.py` — 環境驗證與 Windows 排程安裝
+---
 
-## 使用 / Usage
+## 中文說明
 
-詳細步驟見 [`SETUP.md`](SETUP.md)。基本流程：
+個人化 PSMF（蛋白質節約型減脂）教練系統。每天回填一次（本機表單／Google 表單／Google Sheet），
+自動生成**隔日完整菜單卡**並 email 給你；每週日抓最新論文＋趨勢、重算 TDEE、寄**週報**。
+Python · SQLite · 全免費 API。
 
-1. `pip install -r requirements.txt`
-2. 複製 `.env.example` 為 `.env` 並填入 Gemini key / Gmail SMTP / 個人基線資料
-3. `python init_baseline.py` 初始化 SQLite
-4. `python verify_setup.py` 驗證環境
-5. `python install_autostart.py` 安裝 Windows 工作排程（每日 21:05 + 週日 09:00）
+### 功能
+- **每日**（21:05）：讀回填 → `rule_engine` 判隔日日型 → `menu_generator`（Gemini／template）→ email 菜單卡（每餐 macros／價格、水分、補劑、紅燈自檢、訓練提示）。
+- **每週日**（09:00）：`weekly_analysis` 偵測停滯／減速、重算 TDEE；`research` 抓 PubMed／EuropePMC 論文 → `make_docs` 出 HTML → email 週報。
+- **回填三選一**：本機表單 `form.py`（手機同 WiFi 可連）／ Google 表單（隨地填）／ Google Sheet 手動。
+- **金鑰**：Gemini（免費，429 自動退 template）、Gmail SMTP 寄信、Google Sheet（gviz CSV 唯讀）。皆放 `~/.claude/secrets/`，`verify_setup.py` 一鍵檢查（不印金鑰值）。
 
-互動版架構圖：[`docs/architecture.html`](docs/architecture.html)（5 分頁，含心智圖）。
+### 隱私
+個人健康資料（體重、體脂、菜單紀錄）只存在本機 `data/`（已 gitignore），不進 repo。這是**範本**，請自帶資料。
 
-## License
-
-MIT — 詳見 [`LICENSE`](LICENSE)。
+### 安裝
+見 [SETUP.md](SETUP.md)；完整計畫、營養目標、實證依據見 [PSMF-COACH.md](PSMF-COACH.md)。

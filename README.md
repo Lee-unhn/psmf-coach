@@ -7,7 +7,7 @@ daily check-in (a local form, a Google Form, or a Google Sheet); it generates th
 day's full menu card and emails it to you. Every Sunday it pulls the latest papers +
 trends, recomputes your TDEE, and emails a weekly report. Python · SQLite · free APIs.
 
-> Author: **JasonLee** · Template — bring your own data (personal data lives in `data/`, gitignored).
+> Author: **Lee-unhn** · Template — bring your own data (personal data lives in `data/`, gitignored).
 
 ## Architecture
 
